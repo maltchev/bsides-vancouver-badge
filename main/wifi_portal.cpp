@@ -49,13 +49,34 @@ static const char *TAG = "WifiPortal";
 // -----------------------------------------------------------------------------
 extern CRGB     RGB_LEDS[];
 extern uint8_t  CLED_State[];
+extern uint8_t  presentationCounter;
+extern uint8_t  presentationTracker[8];
 
-// LED slot indices (kept in sync with the #defines at the top of main.cpp).
+// RGB slot indices (kept in sync with the #defines at the top of main.cpp).
+//   0  HALL_RGB     — awake indicator + colour painted by the Hall hold puzzle
+//   1  Team Colour 1 — set by NFC team-colour tags
+//   2  LUX_RGB      — colour painted by the Lux cover puzzle
+//   3  Reserved     — master-unlock indicator (BSides orange when all challenges done)
+//   4  Team Colour 2 — mirror of slot 1
 #define RGB_HALL          0
 #define RGB_TEAM1         1
 #define RGB_LUX           2
 #define RGB_RESERVED      3
 #define RGB_TEAM2         4
+
+// Charlieplex LED indices (kept in sync with the #defines at the top of main.cpp).
+//   0  D3  Presentation 1 attended
+//   1  D4  Presentation 3 attended
+//   2  D5  Malware Village attended
+//   3  D7  Presentation 2 attended
+//   4  D8  Hall sensor LED (mirrors the latched sensor state)
+//   5  D9  Lux sensor LED (lights when ambient light is bright)
+#define CLED_PRES1        0
+#define CLED_PRES3        1
+#define CLED_MALWARE      2
+#define CLED_PRES2        3
+#define CLED_HALL         4
+#define CLED_LUX          5
 
 // -----------------------------------------------------------------------------
 // Module-private state
@@ -156,6 +177,11 @@ static esp_err_t handler_root(httpd_req_t *req) {
 
 // -----------------------------------------------------------------------------
 // /api/state
+//
+// Returns a JSON snapshot of everything the badge can see — sensors, buttons,
+// addressable RGB chain, charlieplexed indicator LEDs, presentation progress,
+// and the master-unlock indicator. The control-panel page polls this every
+// 500 ms.
 // -----------------------------------------------------------------------------
 static esp_err_t handler_state(httpd_req_t *req) {
     int hall = digitalRead(HALL);              // 0 = magnet latched / sensor active
@@ -164,25 +190,47 @@ static esp_err_t handler_state(httpd_req_t *req) {
     int btn2 = digitalRead(BTN2);
     uint8_t br = FastLED.getBrightness();
 
-    char buf[512];
+    // Master unlock = every presentation attended AND Malware Village attended.
+    // Mirrors the logic in main.cpp's checkAndApplyMasterUnlock().
+    bool masterUnlock = (CLED_State[CLED_MALWARE] != 0);
+    for (int i = 0; i < 8 && masterUnlock; i++) {
+        if (presentationTracker[i] == 0) masterUnlock = false;
+    }
+
+    char buf[1024];
     int n = snprintf(buf, sizeof(buf),
         "{"
-        "\"version\":\"v2.4.0\","
-        "\"hall\":%d,\"lux\":%d,\"btn1\":%d,\"btn2\":%d,\"brightness\":%u,"
+        "\"version\":\"v2.4.1\","
+        "\"sensors\":{\"hall\":%d,\"lux\":%d,\"btn1\":%d,\"btn2\":%d},"
+        "\"brightness\":%u,"
         "\"rgb\":["
             "{\"r\":%u,\"g\":%u,\"b\":%u},"
             "{\"r\":%u,\"g\":%u,\"b\":%u},"
             "{\"r\":%u,\"g\":%u,\"b\":%u},"
             "{\"r\":%u,\"g\":%u,\"b\":%u},"
             "{\"r\":%u,\"g\":%u,\"b\":%u}"
-        "]"
+        "],"
+        "\"cled\":[%d,%d,%d,%d,%d,%d],"
+        "\"progress\":{"
+            "\"presentations\":%u,"
+            "\"tracker\":[%d,%d,%d,%d,%d,%d,%d,%d],"
+            "\"malware\":%s,"
+            "\"master_unlock\":%s"
+        "}"
         "}",
         hall, lux, btn1, btn2, br,
         RGB_LEDS[0].r, RGB_LEDS[0].g, RGB_LEDS[0].b,
         RGB_LEDS[1].r, RGB_LEDS[1].g, RGB_LEDS[1].b,
         RGB_LEDS[2].r, RGB_LEDS[2].g, RGB_LEDS[2].b,
         RGB_LEDS[3].r, RGB_LEDS[3].g, RGB_LEDS[3].b,
-        RGB_LEDS[4].r, RGB_LEDS[4].g, RGB_LEDS[4].b);
+        RGB_LEDS[4].r, RGB_LEDS[4].g, RGB_LEDS[4].b,
+        CLED_State[0]!=0, CLED_State[1]!=0, CLED_State[2]!=0,
+        CLED_State[3]!=0, CLED_State[4]!=0, CLED_State[5]!=0,
+        presentationCounter,
+        presentationTracker[0], presentationTracker[1], presentationTracker[2], presentationTracker[3],
+        presentationTracker[4], presentationTracker[5], presentationTracker[6], presentationTracker[7],
+        CLED_State[CLED_MALWARE] ? "true" : "false",
+        masterUnlock ? "true" : "false");
 
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, buf, n);
@@ -454,20 +502,36 @@ const char HTML_PANEL[] = R"HTML(<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BSides Badge</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; padding: 1em;
+  body { font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 1em;
          background:#101418; color:#dde; }
   h1 { font-size: 1.3em; margin: .2em 0; }
+  h3 { margin: 0 0 .5em; }
   .muted { color:#888; font-size:.85em; }
   .card { background:#1a1f25; padding: 1em; border-radius: 8px; margin: 1em 0;
           border:1px solid #2a313a; }
-  .grid { display:grid; grid-template-columns: 1fr 1fr; gap: .5em 1em; font-size:.95em; }
-  .led-row { display:flex; align-items:center; gap:.5em; margin:.4em 0; }
-  .swatch { width:30px; height:30px; border-radius:50%; border:2px solid #333; }
+  .grid { display:grid; grid-template-columns: max-content 1fr; gap: .35em 1em;
+          font-size:.95em; align-items:center; }
+  .grid .val { font-family: ui-monospace, monospace; color:#cdf; }
+  .led-row { display:flex; align-items:center; gap:.6em; margin:.35em 0; font-size:.95em; }
+  .swatch { width:30px; height:30px; border-radius:50%; border:2px solid #333; flex-shrink:0; }
+  .dot { width:14px; height:14px; border-radius:50%; border:1px solid #444; flex-shrink:0; }
+  .dot.on { background:#ffb84d; box-shadow:0 0 6px #ffb84d; border-color:#ffb84d; }
+  .dot.off { background:#222; }
+  .lbl { flex:1; }
+  .desg { color:#888; font-family: ui-monospace, monospace; font-size:.85em;
+          min-width: 2.2em; text-align:right; }
   input[type=color]{ width:50px; height:34px; background:transparent; border:none; }
   input[type=range]{ width:100%; }
   a, a:visited { color:#7af; }
   .pill { display:inline-block; padding:.1em .6em; border-radius:99px;
           background:#243; color:#9f9; font-size:.85em; }
+  .progress { display:flex; gap:.3em; margin-top:.4em; flex-wrap:wrap; }
+  .progress span { width:22px; height:22px; border-radius:4px; display:flex;
+                   align-items:center; justify-content:center; font-size:.75em;
+                   border:1px solid #444; color:#888; font-family:ui-monospace,monospace; }
+  .progress span.done { background:#264; color:#9f9; border-color:#4a8; }
+  .master.unlocked { color:#ffb84d; font-weight:600; }
+  .master.locked { color:#888; }
 </style></head><body>
 <h1>BSides Badge — Live</h1>
 <div class="muted">version <span id=ver>?</span> · <span id=clients class=pill>connected</span></div>
@@ -475,16 +539,32 @@ const char HTML_PANEL[] = R"HTML(<!DOCTYPE html>
 <div class="card">
   <h3>Sensors &amp; buttons</h3>
   <div class="grid">
-    <div>HALL pin</div><div id=hall>?</div>
-    <div>LUX analog</div><div id=lux>?</div>
-    <div>BTN1</div><div id=btn1>?</div>
-    <div>BTN2</div><div id=btn2>?</div>
+    <div>Hall sensor</div><div class=val id=hall>?</div>
+    <div>Lux sensor</div><div class=val id=lux>?</div>
+    <div>BTN1 (NFC scan)</div><div class=val id=btn1>?</div>
+    <div>BTN2 (activity / WiFi)</div><div class=val id=btn2>?</div>
   </div>
 </div>
 
 <div class="card">
-  <h3>RGB LEDs</h3>
+  <h3>Addressable RGB LEDs</h3>
   <div id=leds></div>
+</div>
+
+<div class="card">
+  <h3>Indicator LEDs</h3>
+  <div class=muted style="margin-bottom:.5em">Charlieplexed monochrome LEDs on the front of the badge.</div>
+  <div id=cleds></div>
+</div>
+
+<div class="card">
+  <h3>Game progress</h3>
+  <div class=grid>
+    <div>Presentations</div><div class=val><span id=presCnt>?</span> / 8</div>
+    <div>Malware Village</div><div class=val id=mw>?</div>
+    <div>Master unlock</div><div class=val id=master>?</div>
+  </div>
+  <div class=progress id=progress></div>
 </div>
 
 <div class="card">
@@ -499,31 +579,91 @@ const char HTML_PANEL[] = R"HTML(<!DOCTYPE html>
 </div>
 
 <script>
-const labels = ["HALL_RGB","Team_1","LUX_RGB","Reserved","Team_2"];
+// RGB chain labels — match the order of pixels on the badge.
+const rgbLabels = [
+  { name: "HALL_RGB / Awake",      hint: "Slot 0 — green when idle, blue when WiFi on, Hall puzzle paints it" },
+  { name: "Team Colour 1",         hint: "Slot 1 — set by NFC team-colour tags" },
+  { name: "LUX_RGB",               hint: "Slot 2 — Lux cover puzzle paints it" },
+  { name: "Master Unlock",         hint: "Slot 3 — BSides orange once all challenges done" },
+  { name: "Team Colour 2",         hint: "Slot 4 — mirrors Team Colour 1" },
+];
+
+// Charlieplex LED labels — match the order of indices in main.cpp.
+const cledLabels = [
+  { desg: "D3", name: "Presentation 1" },
+  { desg: "D4", name: "Presentation 3" },
+  { desg: "D5", name: "Malware Village" },
+  { desg: "D7", name: "Presentation 2" },
+  { desg: "D8", name: "Hall sensor LED" },
+  { desg: "D9", name: "Lux sensor LED" },
+];
+
+function buildRgbRows() {
+  rgbLabels.forEach((info, i) => {
+    const row = document.createElement('div'); row.className = 'led-row';
+    row.title = info.hint;
+    row.innerHTML = `<div class=swatch id=sw${i}></div>
+      <div class=lbl>${info.name}</div>
+      <input type=color id=cp${i} onchange="setColor(${i},this.value)">`;
+    leds.appendChild(row);
+  });
+}
+function buildCledRows() {
+  cledLabels.forEach((info, i) => {
+    const row = document.createElement('div'); row.className = 'led-row';
+    row.innerHTML = `<div class="dot off" id=cd${i}></div>
+      <div class=desg>${info.desg}</div>
+      <div class=lbl>${info.name}</div>
+      <div class=val id=cv${i}>off</div>`;
+    cleds.appendChild(row);
+  });
+}
+function buildProgress() {
+  for (let i = 0; i < 8; i++) {
+    const s = document.createElement('span'); s.id = 'pt'+i; s.textContent = (i+1);
+    progress.appendChild(s);
+  }
+}
+
 async function poll() {
   try {
     const r = await fetch('/api/state');
     const s = await r.json();
     ver.textContent = s.version;
-    hall.textContent = s.hall === 0 ? '0 (magnet)' : '1 (idle)';
-    lux.textContent  = s.lux;
-    btn1.textContent = s.btn1 === 0 ? 'pressed' : 'released';
-    btn2.textContent = s.btn2 === 0 ? 'pressed' : 'released';
+
+    // Sensors
+    hall.textContent = s.sensors.hall === 0 ? 'magnet present (line LOW)' : 'idle (line HIGH)';
+    lux.textContent  = `${s.sensors.lux} (analog)`;
+    btn1.textContent = s.sensors.btn1 === 0 ? 'pressed' : 'released';
+    btn2.textContent = s.sensors.btn2 === 0 ? 'pressed' : 'released';
+
+    // Brightness
     br.value = s.brightness; brv.textContent = s.brightness;
-    if (!leds.firstChild) {
-      s.rgb.forEach((c, i) => {
-        const row = document.createElement('div'); row.className = 'led-row';
-        row.innerHTML = `<div class=swatch id=sw${i}></div>
-          <div style="flex:1">${labels[i]}</div>
-          <input type=color id=cp${i} onchange="setColor(${i},this.value)">`;
-        leds.appendChild(row);
-      });
-    }
+
+    // RGB chain
     s.rgb.forEach((c, i) => {
       const hex = '#' + [c.r,c.g,c.b].map(x => x.toString(16).padStart(2,'0')).join('');
       document.getElementById('sw'+i).style.background = hex;
       document.getElementById('cp'+i).value = hex;
     });
+
+    // Charlieplex indicator LEDs
+    s.cled.forEach((on, i) => {
+      const dot = document.getElementById('cd'+i);
+      const val = document.getElementById('cv'+i);
+      dot.className = on ? 'dot on' : 'dot off';
+      val.textContent = on ? 'on' : 'off';
+    });
+
+    // Game progress
+    presCnt.textContent = s.progress.presentations;
+    mw.textContent      = s.progress.malware ? 'attended' : 'not yet';
+    master.textContent  = s.progress.master_unlock ? 'UNLOCKED' : 'locked';
+    master.className    = 'val master ' + (s.progress.master_unlock ? 'unlocked' : 'locked');
+    s.progress.tracker.forEach((t, i) => {
+      document.getElementById('pt'+i).className = t ? 'done' : '';
+    });
+
     clients.textContent = 'connected';
     clients.style.background = '#243';
   } catch (e) {
@@ -543,6 +683,7 @@ function setBr(v) {
   fetch('/api/brightness', { method:'POST',
     body: JSON.stringify({value: parseInt(v)}) });
 }
+buildRgbRows(); buildCledRows(); buildProgress();
 setInterval(poll, 500); poll();
 </script></body></html>
 )HTML";

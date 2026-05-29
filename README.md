@@ -1,5 +1,10 @@
 # BSides Vancouver Conference Badge — Firmware
 
+[![Project home](https://img.shields.io/badge/repo-maltchev%2Fbsides--vancouver--badge-blue?logo=github)](https://github.com/maltchev/bsides-vancouver-badge)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![ESP-IDF v5.4.1](https://img.shields.io/badge/ESP--IDF-v5.4.1-red)](https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32c3/index.html)
+[![Target ESP32-C3](https://img.shields.io/badge/target-ESP32--C3-purple)](https://www.espressif.com/en/products/socs/esp32-c3)
+
 Firmware for the BSides Vancouver conference badge: an ESP32-C3-based wearable
 with an NFC reader, addressable RGB LEDs, charlieplexed indicator LEDs, a
 hall-effect sensor, an ambient light sensor, two buttons, and an optional WiFi
@@ -9,6 +14,8 @@ challenge.
 This repository contains the source code and documentation needed to build,
 flash, and modify the badge firmware. It is the basis for the BSides
 Vancouver badge-workshop sessions.
+
+**Repository:** <https://github.com/maltchev/bsides-vancouver-badge>
 
 ---
 
@@ -36,9 +43,13 @@ For the NFC tag commands, see [`docs/NFC_TAGS.md`](docs/NFC_TAGS.md).
 ## Quick start
 
 1. Install ESP-IDF v5.4.1 — see [`docs/BUILDING.md`](docs/BUILDING.md).
-2. Clone this repository.
-3. From the project root:
+2. Clone this repository:
+   ```sh
+   git clone https://github.com/maltchev/bsides-vancouver-badge.git
+   cd bsides-vancouver-badge
    ```
+3. From the project root:
+   ```sh
    idf.py set-target esp32c3
    idf.py build
    idf.py -p <PORT> flash monitor
@@ -59,23 +70,32 @@ plugging USB in — that triggers a hard reset which wipes all persisted state.
 ├── README.md                  ← you are here
 ├── LICENSE
 ├── CHANGELOG.md
-├── CMakeLists.txt             ← top-level ESP-IDF project file
+├── CMakeLists.txt             ← top-level ESP-IDF project file (main firmware)
 ├── sdkconfig.defaults         ← committed Kconfig overrides for the badge
-├── partitions.csv             ← (if present) custom flash partition table
 ├── version.txt                ← human-readable firmware version string
 │
-├── main/                      ← project source code
+├── main/                      ← main firmware source code
 │   ├── main.cpp               ← entry point, main loop, NFC/sensor/LED logic
 │   ├── project_pins.h         ← hardware pin map and tunable constants
 │   ├── badge_state.h/.cpp     ← NVS-backed persistent state
 │   ├── wifi_portal.h/.cpp     ← optional WiFi AP + web UI + CTF
 │   └── CMakeLists.txt
 │
-├── components/                ← vendored third-party components
-│   ├── FastLED/               ← RGB LED driver
-│   ├── NFC_RFAL/              ← ST RFAL (NFC abstraction)
-│   ├── ST25R3911B/            ← NFC reader chip driver
-│   └── espressif__arduino-esp32/  ← Arduino layer (digitalRead, delay, etc.)
+├── components/                ← vendored third-party libraries
+│   ├── FastLED/                       ← RGB LED driver
+│   ├── NFC_RFAL/                      ← ST RFAL (NFC abstraction)
+│   ├── ST25R3911B/                    ← NFC reader chip driver
+│   └── espressif__arduino-esp32/      ← Arduino layer (digitalRead, delay, …)
+│
+├── starter-template/          ← blank canvas for workshop attendees
+│   ├── README.md
+│   ├── CMakeLists.txt
+│   ├── sdkconfig.defaults
+│   └── main/                          ← minimal setup() + empty loop()
+│
+├── prebuilt/                  ← ready-to-flash binaries (no IDF needed)
+│   ├── README.md
+│   └── 2025-production/               ← original 2025 badge firmware
 │
 └── docs/
     ├── BUILDING.md            ← dev environment setup, building, flashing

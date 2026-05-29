@@ -5,6 +5,20 @@ Notable changes to the BSides Vancouver Badge firmware.
 The version string lives in [`version.txt`](version.txt) and is printed at
 boot and surfaced over the WiFi portal's status endpoint.
 
+## v2.4.1
+
+### Control panel improvements
+- Live web panel now shows **all six charlieplexed indicator LEDs**
+  (Presentation 1–3, Malware Village, Hall LED, Lux LED) with their
+  PCB designators (D3, D4, D5, D7, D8, D9).
+- New **Game progress** card displays the presentation attendance counter,
+  Malware Village state, and the master-unlock status with a per-session
+  progress strip.
+- RGB-LED labels updated to reflect their functional role (HALL_RGB / Awake,
+  Master Unlock, etc.) instead of just `RGB_1`/`RGB_2`/etc.
+- `/api/state` JSON is restructured: sensors and game-progress fields are
+  grouped under nested objects (`sensors{}`, `progress{}`).
+
 ## v2.4.0
 
 First public release of the refactored firmware.

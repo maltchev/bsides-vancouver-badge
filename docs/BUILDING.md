@@ -40,8 +40,8 @@ You should now have `idf.py` on your `PATH`.
 ## 2. Clone the project
 
 ```sh
-git clone https://github.com/<org>/bsides-badge-firmware.git
-cd bsides-badge-firmware
+git clone https://github.com/maltchev/bsides-vancouver-badge.git
+cd bsides-vancouver-badge
 ```
 
 The `components/` directory contains vendored libraries (FastLED,
