@@ -104,7 +104,11 @@ plugging USB in — that triggers a hard reset which wipes all persisted state.
     ├── SOFTWARE.md                       ← firmware architecture & boot flow
     ├── NFC_TAGS.md                       ← NFC tag command reference
     ├── WORKSHOP.md                       ← workshop module flow (for facilitators)
-    └── BSides_Badge_2025_r2.0_Schematics.PDF   ← authoritative hardware schematic
+    ├── BSides_Badge_2025_r2.0_Schematics.PDF   ← authoritative hardware schematic
+    └── slides/
+        ├── software-workshop.pptx        ← presenter deck (PowerPoint)
+        ├── software-workshop.md          ← same deck, Marp markdown (renders on GitHub)
+        └── build_deck.py                 ← regenerates the PPTX
 ```
 
 ---
