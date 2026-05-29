@@ -1,0 +1,21 @@
+# =============================================================================
+# sdkconfig.defaults — BSides Vancouver 2025 Badge
+# =============================================================================
+#
+# Minimal Kconfig overrides needed to build this project on top of ESP-IDF
+# v5.4.1. The rest of the configuration uses IDF defaults.
+#
+# Settings chosen to match the production firmware as observed via
+# `esptool.py image_info` on a factory-flashed badge.
+#
+# Regenerate sdkconfig after editing by deleting `sdkconfig` and running
+#   idf.py set-target esp32c3
+# (or `idf.py fullclean` to force a clean rebuild).
+
+# Arduino-as-component requirement — fixed tick rate.
+CONFIG_FREERTOS_HZ=1000
+
+# Flash layout matching production
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
