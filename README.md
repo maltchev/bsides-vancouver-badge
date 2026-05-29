@@ -37,6 +37,7 @@ Vancouver badge-workshop sessions.
 For a full feature tour, see [`docs/SOFTWARE.md`](docs/SOFTWARE.md).
 For the hardware reference, see [`docs/HARDWARE.md`](docs/HARDWARE.md).
 For the NFC tag commands, see [`docs/NFC_TAGS.md`](docs/NFC_TAGS.md).
+For the **schematic PDF**, see [`docs/BSides_Badge_2025_r2.0_Schematics.PDF`](docs/BSides_Badge_2025_r2.0_Schematics.PDF).
 
 ---
 
@@ -98,11 +99,12 @@ plugging USB in — that triggers a hard reset which wipes all persisted state.
 │   └── 2025-production/               ← original 2025 badge firmware
 │
 └── docs/
-    ├── BUILDING.md            ← dev environment setup, building, flashing
-    ├── HARDWARE.md            ← what's on the board, pinout, schematic notes
-    ├── SOFTWARE.md            ← firmware architecture & boot flow
-    ├── NFC_TAGS.md            ← NFC tag command reference
-    └── WORKSHOP.md            ← workshop module flow (for facilitators)
+    ├── BUILDING.md                       ← dev environment setup, building, flashing
+    ├── HARDWARE.md                       ← what's on the board, pinout, schematic notes
+    ├── SOFTWARE.md                       ← firmware architecture & boot flow
+    ├── NFC_TAGS.md                       ← NFC tag command reference
+    ├── WORKSHOP.md                       ← workshop module flow (for facilitators)
+    └── BSides_Badge_2025_r2.0_Schematics.PDF   ← authoritative hardware schematic
 ```
 
 ---

@@ -6,10 +6,14 @@ magnetic sensor, an ambient-light sensor, and a small set of indicator
 LEDs. Power is provided either by USB Type-A (edge mount) or by two
 CR2032 coin cells in parallel.
 
-This document is a reference for the firmware. The authoritative source
-is the project schematic — see the workshop materials package — but
-this summary lists what the firmware can see and which GPIO each device
-is wired to.
+This document is a reference for the firmware. The authoritative
+source is the project schematic:
+
+📄 **[`BSides_Badge_2025_r2.0_Schematics.PDF`](BSides_Badge_2025_r2.0_Schematics.PDF)**
+(5 pages: top sheet, MCU, power, sensors/actuators, RFID reader & antenna)
+
+What follows is the firmware-side summary — what the code can see and
+which GPIO each device is wired to.
 
 ---
 
